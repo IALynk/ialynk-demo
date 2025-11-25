@@ -1,31 +1,36 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
+
 import TabsBar from "@/components/settings/TabsBar";
 import ProfileTab from "@/components/settings/ProfileTab";
 import AgencyTab from "@/components/settings/AgencyTab";
 import AIAssistantTab from "@/components/settings/AIAssistantTab";
 import TelephonyTab from "@/components/settings/TelephonyTab";
 import SecurityTab from "@/components/settings/SecurityTab";
-import { useEffect } from "react";
 
 export default function ReglagesContent() {
+  return (
+    <Suspense fallback={<div>Chargement…</div>}>
+      <ReglagesContentInner />
+    </Suspense>
+  );
+}
+
+function ReglagesContentInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const tab = searchParams.get("tab") || "profil";
-
   const validTabs = ["profil", "agence", "ia", "telephonie", "securite"];
 
-  useEffect(() => {
-    if (!validTabs.includes(tab)) {
-      router.replace("/reglages?tab=profil");
-    }
-  }, [tab]);
+  if (!validTabs.includes(tab)) {
+    router.replace("/reglages?tab=profil");
+  }
 
   return (
     <main className="p-8 min-h-screen bg-gray-50 dark:bg-neutral-900 text-gray-900 dark:text-white">
-
       <button
         onClick={() => router.push("/dashboard")}
         className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition mb-4"
@@ -47,4 +52,3 @@ export default function ReglagesContent() {
     </main>
   );
 }
-

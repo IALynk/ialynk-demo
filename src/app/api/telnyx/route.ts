@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
+// ➜ Endpoint GET pour vérifier que l’API existe
+export async function GET() {
+  return NextResponse.json({ status: "OK TELNYX ROUTE" });
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -138,10 +143,11 @@ export async function POST(req: Request) {
       });
     }
 
+    // Si l'événement n'est pas géré
     return NextResponse.json({ ok: true });
+
   } catch (error) {
     console.error("❌ ERREUR GLOBALE TELNYX :", error);
-
     return NextResponse.json({ ok: false, error: "Internal Telnyx error" });
   }
 }

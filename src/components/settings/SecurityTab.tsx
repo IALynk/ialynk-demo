@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function SecurityTab() {
+  const supabase = createClientComponentClient();
+
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
@@ -21,16 +18,24 @@ export default function SecurityTab() {
   }, []);
 
   const loadSecurityData = async () => {
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth?.user) return;
+    // 🔥 Récupération réelle de l'utilisateur
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    setUser(auth.user);
+    if (!user) {
+      console.warn("❌ Aucun utilisateur connecté");
+      setLoading(false);
+      return;
+    }
 
-    // Charger sessions
+    setUser(user);
+
+    // Charger les sessions enregistrées
     const { data: sessionData } = await supabase
       .from("user_sessions")
       .select("*")
-      .eq("user_id", auth.user.id)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     setSessions(sessionData || []);
@@ -97,7 +102,7 @@ export default function SecurityTab() {
         </div>
       </div>
 
-      {/* --- Deconnexion globale --- */}
+      {/* --- Déconnexion globale --- */}
       <div>
         <h3 className="text-lg font-medium mb-2">Déconnexion globale</h3>
         <button
@@ -149,7 +154,7 @@ export default function SecurityTab() {
       <div>
         <h3 className="text-lg font-medium mb-2">Authentification à deux facteurs</h3>
         <p className="text-gray-500 dark:text-gray-400 mb-3">
-          Cette fonctionnalité sera bientôt disponible pour renforcer votre sécurité.
+          Cette fonctionnalité sera bientôt disponible pour renforcer la sécurité.
         </p>
 
         <button

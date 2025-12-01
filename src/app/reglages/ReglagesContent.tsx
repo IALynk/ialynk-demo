@@ -1,7 +1,6 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense } from "react";
 
 import TabsBar from "@/components/settings/TabsBar";
 import ProfileTab from "@/components/settings/ProfileTab";
@@ -11,11 +10,7 @@ import TelephonyTab from "@/components/settings/TelephonyTab";
 import SecurityTab from "@/components/settings/SecurityTab";
 
 export default function ReglagesContent() {
-  return (
-    <Suspense fallback={<div>Chargement…</div>}>
-      <ReglagesContentInner />
-    </Suspense>
-  );
+  return <ReglagesContentInner />;
 }
 
 function ReglagesContentInner() {
@@ -25,8 +20,10 @@ function ReglagesContentInner() {
   const tab = searchParams.get("tab") || "profil";
   const validTabs = ["profil", "agence", "ia", "telephonie", "securite"];
 
+  // 🔥 Empêche un rendu infini si tab est invalide
   if (!validTabs.includes(tab)) {
     router.replace("/reglages?tab=profil");
+    return null; // ← très important pour éviter l'affichage vide
   }
 
   return (

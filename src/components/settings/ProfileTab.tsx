@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function ProfileTab() {
+  const supabase = createClientComponentClient();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -24,16 +21,24 @@ export default function ProfileTab() {
   }, []);
 
   const loadUser = async () => {
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth?.user) return;
+    // 🔥 Récupération correcte de la session côté client
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    setUserAuth(auth.user);
+    if (!user) {
+      console.warn("Aucun utilisateur connecté");
+      setLoading(false);
+      return;
+    }
 
-    // Charger les infos dans la table Users
+    setUserAuth(user);
+
+    // Charger dans ta table Users
     const { data: dbUser } = await supabase
       .from("Users")
       .select("*")
-      .eq("id", auth.user.id)
+      .eq("id", user.id)
       .single();
 
     if (dbUser) {
@@ -50,21 +55,19 @@ export default function ProfileTab() {
     if (!userAuth) return;
     setSaving(true);
 
-    // 1 — Mise à jour Supabase Auth (metadata)
     await supabase.auth.updateUser({
       data: {
         full_name: fullName,
-        phone: phone,
+        phone,
         avatar_url: avatarUrl,
       },
     });
 
-    // 2 — Mise à jour de ta table Users
     const { error } = await supabase
       .from("Users")
       .update({
         full_name: fullName,
-        phone: phone,
+        phone,
         avatar_url: avatarUrl,
       })
       .eq("id", userAuth.id);
@@ -86,7 +89,6 @@ export default function ProfileTab() {
     const ext = file.name.split(".").pop();
     const path = `${userAuth.id}.${ext}`;
 
-    // Upload dans supabase storage bucket avatars
     const { error: uploadError } = await supabase.storage
       .from("avatars")
       .upload(path, file, { upsert: true });
@@ -96,7 +98,6 @@ export default function ProfileTab() {
       return;
     }
 
-    // Obtenir URL publique
     const {
       data: { publicUrl },
     } = supabase.storage.from("avatars").getPublicUrl(path);

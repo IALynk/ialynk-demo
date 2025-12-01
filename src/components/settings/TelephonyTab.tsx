@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function TelephonyTab() {
+  const supabase = createClientComponentClient();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -27,16 +24,24 @@ export default function TelephonyTab() {
   }, []);
 
   const loadTelephony = async () => {
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth?.user) return;
+    // 🔥 Récupération correcte de l'utilisateur
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    setUser(auth.user);
+    if (!user) {
+      console.warn("❌ Aucun utilisateur connecté");
+      setLoading(false);
+      return;
+    }
 
-    // Charger les settings existants
+    setUser(user);
+
+    // Charger les paramètres existants
     const { data } = await supabase
       .from("telephony_settings")
       .select("*")
-      .eq("user_id", auth.user.id)
+      .eq("user_id", user.id)
       .single();
 
     if (data) {
@@ -80,26 +85,24 @@ export default function TelephonyTab() {
     setSaving(false);
   };
 
-  // Test fake telnyx/twilio connection
+  // Test de connexion fake pour la démo
   const testConnection = async () => {
-    setTesting(true);
-
-    // Pour la version démo → simple simulation
-    await new Promise((r) => setTimeout(r, 1200));
-
     if (!apiKey || !secret) {
       alert("Impossible : API Key ou Secret manquant.");
-      setStatus("disconnected");
-    } else {
-      // Simule un succès
-      setStatus("connected");
-      alert("Connexion réussie ✔️");
+      return;
     }
 
-    // Mise à jour du statut dans Supabase
+    setTesting(true);
+    await new Promise((r) => setTimeout(r, 1200));
+
+    // Simule une connexion réussie
+    setStatus("connected");
+    alert("Connexion réussie ✔️");
+
+    // Mettre à jour le statut en base
     await supabase
       .from("telephony_settings")
-      .update({ status })
+      .update({ status: "connected" })
       .eq("user_id", user.id);
 
     setTesting(false);
@@ -198,7 +201,7 @@ export default function TelephonyTab() {
           disabled={saving}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:opacity-90 disabled:opacity-50"
         >
-          {saving ? "Enregistrement..." : "Enregistrer"}
+          {saving ? "Enregistrement…" : "Enregistrer"}
         </button>
 
         <button
@@ -206,7 +209,7 @@ export default function TelephonyTab() {
           disabled={testing}
           className="px-4 py-2 bg-gray-200 dark:bg-neutral-700 rounded-lg hover:opacity-80 disabled:opacity-50"
         >
-          {testing ? "Test..." : "Tester la connexion"}
+          {testing ? "Test…" : "Tester la connexion"}
         </button>
       </div>
     </div>

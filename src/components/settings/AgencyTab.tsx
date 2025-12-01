@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function AgencyTab() {
+  const supabase = createClientComponentClient();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -26,17 +23,24 @@ export default function AgencyTab() {
   }, []);
 
   const loadAgency = async () => {
-    // Charger user auth
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth?.user) return;
+    // 🔥 Récupération correcte de l'utilisateur côté client
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    setUser(auth.user);
+    if (!user) {
+      console.warn("❌ Aucun utilisateur connecté");
+      setLoading(false);
+      return;
+    }
 
-    // Charger l'agence associée
+    setUser(user);
+
+    // Charger l'agence liée
     const { data: agencyData } = await supabase
       .from("agencies")
       .select("*")
-      .eq("admin_user_id", auth.user.id)
+      .eq("admin_user_id", user.id)
       .single();
 
     if (agencyData) {
@@ -102,7 +106,9 @@ export default function AgencyTab() {
 
   if (loading)
     return (
-      <p className="text-gray-500 dark:text-gray-400">Chargement de l’agence…</p>
+      <p className="text-gray-500 dark:text-gray-400">
+        Chargement de l’agence…
+      </p>
     );
 
   return (

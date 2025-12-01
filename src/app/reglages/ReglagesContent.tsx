@@ -31,7 +31,7 @@ function ReglagesContentInner() {
         onClick={() => router.push("/dashboard")}
         className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition mb-4"
       >
-        Retour
+        ← Retour
       </button>
 
       <h1 className="text-3xl font-bold mb-8">Réglages</h1>

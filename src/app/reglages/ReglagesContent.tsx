@@ -20,14 +20,15 @@ function ReglagesContentInner() {
   const tab = searchParams.get("tab") || "profil";
   const validTabs = ["profil", "agence", "ia", "telephonie", "securite"];
 
-  // 🔥 Empêche un rendu infini si tab est invalide
+  // ⚠️ Empêche un rendu infini si l'URL contient un tab invalide
   if (!validTabs.includes(tab)) {
     router.replace("/reglages?tab=profil");
-    return null; // ← très important pour éviter l'affichage vide
+    return null;
   }
 
   return (
     <main className="p-8 min-h-screen bg-gray-50 dark:bg-neutral-900 text-gray-900 dark:text-white">
+      
       <button
         onClick={() => router.push("/dashboard")}
         className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition mb-4"
@@ -46,6 +47,7 @@ function ReglagesContentInner() {
         {tab === "telephonie" && <TelephonyTab />}
         {tab === "securite" && <SecurityTab />}
       </div>
+      
     </main>
   );
 }

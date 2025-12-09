@@ -9,7 +9,20 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export default function ContactModal({ isOpen, onClose, contact, refresh }: any) {
+// Types de contacts
+const CONTACT_TYPES = [
+  "Locataire",
+  "Propriétaire",
+  "Professionnel",
+  "Artisan",
+  "Agence immobilière",
+  "Syndic",
+  "Fournisseur",
+  "Prospect",
+  "Autre",
+];
+
+export default function ContactModal({ isOpen, onClose, contact }: any) {
   const [id, setId] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -20,28 +33,45 @@ export default function ContactModal({ isOpen, onClose, contact, refresh }: any)
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("France");
 
+  const [type, setType] = useState("");
+  const [details, setDetails] = useState("");
+
+  // -------------------------------------------------
+  // Remplit le formulaire si on modifie un contact
+  // -------------------------------------------------
   useEffect(() => {
     if (contact) {
-      setId(contact.id); // ❤️ IMPORTANT
+      setId(contact.id);
       setFullName(contact.full_name || "");
       setEmail(contact.email || "");
       setPhone(contact.phone || "");
+
       setStreet(contact.street || "");
       setPostalCode(contact.postal_code || "");
       setCity(contact.city || "");
       setCountry(contact.country || "France");
+
+      setType(contact.type || "");
+      setDetails(contact.details || "");
     } else {
       setId(null);
       setFullName("");
       setEmail("");
       setPhone("");
+
       setStreet("");
       setPostalCode("");
       setCity("");
       setCountry("France");
+
+      setType("");
+      setDetails("");
     }
   }, [contact]);
 
+  // -------------------------------------------------
+  // Sauvegarde (Create / Update)
+  // -------------------------------------------------
   const handleSave = async () => {
     const payload = {
       full_name: fullName,
@@ -51,17 +81,19 @@ export default function ContactModal({ isOpen, onClose, contact, refresh }: any)
       postal_code: postalCode,
       city,
       country,
+      type,
+      details,
     };
 
     if (id) {
-      // UPDATE
+      // Update
       await supabase.from("contacts").update(payload).eq("id", id);
     } else {
-      // INSERT
+      // Create — ⚠️ ne pas refresher ici (realtime le fera)
       await supabase.from("contacts").insert([payload]);
     }
 
-    refresh();
+    // ❌ On NE FAIT PLUS refresh() → éviter les doublons
     onClose();
   };
 
@@ -87,7 +119,7 @@ export default function ContactModal({ isOpen, onClose, contact, refresh }: any)
             <div className="space-y-3">
               <input
                 type="text"
-                placeholder="Nom"
+                placeholder="Nom complet"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className="border rounded-lg px-3 py-2 w-full"
@@ -107,6 +139,27 @@ export default function ContactModal({ isOpen, onClose, contact, refresh }: any)
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="border rounded-lg px-3 py-2 w-full"
+              />
+
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="border rounded-lg px-3 py-2 w-full"
+              >
+                <option value="">Type de contact</option>
+                {CONTACT_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+
+              <textarea
+                placeholder="Notes internes / détails"
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+                rows={3}
+                className="border rounded-lg px-3 py-2 w-full resize-none"
               />
 
               <p className="mt-4 font-medium">Adresse</p>

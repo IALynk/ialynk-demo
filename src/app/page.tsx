@@ -10,18 +10,19 @@ export default function Page() {
       {/* BACKGROUND — BLEU NUIT NET */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#071022] via-[#060b1a] to-[#020611]" />
 
-      {/* SILHOUETTE DE BUILDINGS */}
-      <div
-        className="absolute bottom-0 left-0 w-full h-[280px] bg-repeat-x opacity-30"
-        style={{
-          backgroundImage: "url('/buildings.png')",
-          backgroundSize: "contain",
-          backgroundPosition: "bottom",
-        }}
-      />
+      {/* HALO LUMINEUX EN BAS — REMPLACE LES BUILDINGS */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[900px] h-[350px] bg-blue-600/30 blur-[140px] rounded-full opacity-70" />
 
-      {/* HALO LUMINEUX DERRIÈRE LES BUILDINGS */}
-      <div className="absolute bottom-[80px] left-1/2 -translate-x-1/2 w-[900px] h-[350px] bg-blue-600/20 blur-[120px] rounded-full opacity-60" />
+      {/* LIGNE LUMINEUSE AU SOL */}
+      <div className="absolute bottom-0 left-0 w-full h-[2px] bg-blue-400/30 shadow-[0_0_20px_5px_rgba(59,130,246,0.35)]" />
+
+      {/* EFFET DE LUMIÈRES EN COLONNES */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute bottom-0 left-[20%] w-[6px] h-[180px] bg-blue-500/20 blur-[3px] rounded-full" />
+        <div className="absolute bottom-0 left-[40%] w-[4px] h-[220px] bg-purple-500/20 blur-[4px] rounded-full" />
+        <div className="absolute bottom-0 left-[60%] w-[8px] h-[160px] bg-indigo-500/20 blur-[3px] rounded-full" />
+        <div className="absolute bottom-0 left-[80%] w-[5px] h-[200px] bg-blue-400/15 blur-[4px] rounded-full" />
+      </div>
 
       {/* TEXTE CENTRAL */}
       <motion.div

@@ -6,28 +6,30 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
 
-  // session Supabase
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   const pathname = req.nextUrl.pathname;
-  const isLoginPage = pathname.startsWith("/login");
 
-  // Public route, pas besoin de session
-  if (isLoginPage) {
+  // 🔥 Routes publiques
+  const publicRoutes = ["/login", "/register", "/"];
+  const isPublic = publicRoutes.some((r) => pathname.startsWith(r));
+
+  // ✔️ Autoriser les routes publiques
+  if (isPublic) {
     res.headers.set("x-pathname", pathname);
     return res;
   }
 
-  // Non connecté → Redirection login
+  // ❌ Non connecté → login
   if (!session) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  // Va chercher le rôle dans Users
+  // 🔥 Rôles (Users table)
   const { data: userData } = await supabase
     .from("Users")
     .select("role")
@@ -36,28 +38,18 @@ export async function middleware(req: NextRequest) {
 
   const role = userData?.role || "agent";
 
-  // Protection pages admin
+  // 🔒 Protection admin
   if (pathname.startsWith("/admin") && role !== "admin") {
     const url = req.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
-  // Envoyer le pathname au layout pour la sidebar
   res.headers.set("x-pathname", pathname);
   return res;
 }
 
 export const config = {
-  matcher: [
-    "/dashboard/:path*",
-    "/reglages/:path*",
-    "/contacts/:path*",
-    "/messages/:path*",
-    "/tickets/:path*",
-    "/assistant/:path*",
-    "/calendrier/:path*",
-    "/appels/:path*",
-    "/admin/:path*", // pages admin protégées
-  ],
+  // Middleware appliqué à toutes les routes sauf fichiers statiques & API
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };

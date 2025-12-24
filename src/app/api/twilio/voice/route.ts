@@ -15,10 +15,17 @@ export async function POST(req: Request) {
   try {
     const bodyText = await req.text();
     const params = new URLSearchParams(bodyText);
+
     const recordingUrl = params.get("RecordingUrl");
+    const recordingStatus = params.get("RecordingStatus");
+
+    // 🟡 IMPORTANT : ignorer les callbacks intermédiaires
+    if (recordingStatus && recordingStatus !== "completed") {
+      return new NextResponse("", { status: 200 });
+    }
 
     // =========================
-    // 1️⃣ APPEL ENTRANT
+    // 1️⃣ APPEL ENTRANT (1er passage)
     // =========================
     if (!recordingUrl) {
       response.say(
@@ -30,15 +37,13 @@ export async function POST(req: Request) {
         timeout: 5,
         maxLength: 30,
         playBeep: true,
+        trim: "do-not-trim",
 
         action: "https://www.ialynk.fr/api/twilio/voice",
         method: "POST",
 
         recordingStatusCallback: "https://www.ialynk.fr/api/twilio/voice",
         recordingStatusCallbackMethod: "POST",
-
-        // 🔴 CRUCIAL : empêche Twilio de couper l'audio trop tôt
-        trim: "do-not-trim",
       });
 
       return new NextResponse(response.toString(), {
@@ -47,9 +52,10 @@ export async function POST(req: Request) {
     }
 
     // =========================
-    // 2️⃣ TRANSCRIPTION
+    // 2️⃣ TRANSCRIPTION AUDIO
     // =========================
     const audioUrl = `${recordingUrl}.wav`;
+
     const audioResponse = await fetch(audioUrl);
     const audioBuffer = await audioResponse.arrayBuffer();
     const audioFile = new File([audioBuffer], "audio.wav", {
@@ -80,7 +86,7 @@ export async function POST(req: Request) {
     }
 
     // =========================
-    // 3️⃣ IA MÉTIER IMMOBILIER
+    // 3️⃣ IA IMMOBILIÈRE
     // =========================
     const chat = await openai.chat.completions.create({
       model: "chatgpt-5.1",
@@ -92,12 +98,12 @@ Tu es IA Link, assistante téléphonique immobilière professionnelle en France.
 
 RÈGLES ABSOLUES :
 - Tu réponds TOUJOURS en français
-- Tu fais des réponses COURTES (1 à 2 phrases max)
-- Tu parles naturellement, comme une humaine
+- Réponses COURTES (1 à 2 phrases max)
+- Ton naturel, humain, rassurant
 - Tu poses TOUJOURS une question utile
-- Tu aides à qualifier le besoin
+- Tu qualifies le besoin
 
-INTENTIONS À IDENTIFIER :
+INTENTIONS :
 - location
 - achat
 - vente
@@ -105,8 +111,8 @@ INTENTIONS À IDENTIFIER :
 - rendez-vous
 - urgence
 
-FORMAT DE RÉPONSE :
-Phrase 1 : réponse claire et rassurante
+FORMAT :
+Phrase 1 : réponse claire
 Phrase 2 : question de qualification
           `,
         },
@@ -123,7 +129,6 @@ Phrase 2 : question de qualification
       limitVoice(aiReply)
     );
 
-    // 🔴 On raccroche SEULEMENT après la réponse
     response.hangup();
 
     return new NextResponse(response.toString(), {

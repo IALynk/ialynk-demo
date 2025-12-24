@@ -1,11 +1,8 @@
-// src/app/api/twilio/voice/route.ts
-
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { twiml } from "twilio";
 
-// 🔒 Limite pour éviter les réponses trop longues en vocal
-function limitVoice(text: string, max = 280) {
+function limitVoice(text: string, max = 220) {
   return text.length > max ? text.slice(0, max) + "…" : text;
 }
 
@@ -13,38 +10,27 @@ export async function POST(req: Request) {
   const response = new twiml.VoiceResponse();
 
   try {
-    const bodyText = await req.text();
-    const params = new URLSearchParams(bodyText);
+    const body = await req.text();
+    const params = new URLSearchParams(body);
 
-    const recordingUrl = params.get("RecordingUrl");
-    const recordingStatus = params.get("RecordingStatus");
-
-    // 🟡 Ignorer les callbacks intermédiaires de Twilio
-    if (recordingStatus && recordingStatus !== "completed") {
-      return new NextResponse("", { status: 200 });
-    }
+    const speechResult = params.get("SpeechResult");
 
     // =========================
-    // 1️⃣ APPEL ENTRANT
+    // 1️⃣ PREMIER PASSAGE → ÉCOUTE
     // =========================
-    if (!recordingUrl) {
-      response.say(
-        { voice: "alice", language: "fr-FR" },
-        "Bonjour, je suis l’assistante IA Link. Comment puis-je vous aider aujourd’hui ?"
-      );
-
-      response.record({
-        timeout: 5,
-        maxLength: 30,
-        playBeep: true,
-        trim: "do-not-trim",
-
+    if (!speechResult) {
+      const gather = response.gather({
+        input: ["speech"],
+        language: "fr-FR",
+        speechTimeout: "auto",
         action: "https://www.ialynk.fr/api/twilio/voice",
         method: "POST",
-
-        recordingStatusCallback: "https://www.ialynk.fr/api/twilio/voice",
-        recordingStatusCallbackMethod: "POST",
       });
+
+      gather.say(
+        { voice: "alice", language: "fr-FR" },
+        "Bonjour, je suis l’assistante IALynk. Comment puis-je vous aider ?"
+      );
 
       return new NextResponse(response.toString(), {
         headers: { "Content-Type": "text/xml" },
@@ -52,43 +38,16 @@ export async function POST(req: Request) {
     }
 
     // =========================
-    // 2️⃣ TRANSCRIPTION AUDIO (WHISPER)
+    // 2️⃣ TEXTE COMPRIS
     // =========================
-    const audioUrl = `${recordingUrl}.wav`;
-    const audioResponse = await fetch(audioUrl);
-    const audioBuffer = await audioResponse.arrayBuffer();
-
-    const audioFile = new File([audioBuffer], "audio.wav", {
-      type: "audio/wav",
-    });
+    const userText = speechResult.trim();
 
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY!,
     });
 
-    // ✅ SEUL modèle STT valide
-    const transcript = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-      language: "fr",
-    });
-
-    const userText = transcript.text?.trim();
-
-    if (!userText) {
-      response.say(
-        { voice: "alice", language: "fr-FR" },
-        "Je suis désolée, je n’ai pas bien entendu. Pouvez-vous reformuler ?"
-      );
-      response.hangup();
-
-      return new NextResponse(response.toString(), {
-        headers: { "Content-Type": "text/xml" },
-      });
-    }
-
     // =========================
-    // 3️⃣ IA IMMOBILIÈRE (GPT-5.2)
+    // 3️⃣ IA IMMOBILIÈRE
     // =========================
     const chat = await openai.chat.completions.create({
       model: "gpt-5.2",
@@ -96,14 +55,13 @@ export async function POST(req: Request) {
         {
           role: "system",
           content: `
-Tu es IA Link, assistante téléphonique immobilière professionnelle en France.
+Tu es IALynk, assistante téléphonique immobilière professionnelle en France.
 
-RÈGLES ABSOLUES :
-- Tu réponds TOUJOURS en français
-- Réponses COURTES (1 à 2 phrases)
-- Ton naturel, humain, rassurant
-- Tu poses TOUJOURS une question utile
-- Tu qualifies le besoin
+RÈGLES :
+- Français uniquement
+- 1 à 2 phrases max
+- Ton naturel et humain
+- Toujours poser UNE question de qualification
 
 INTENTIONS :
 - location
@@ -112,10 +70,6 @@ INTENTIONS :
 - problème locataire
 - rendez-vous
 - urgence
-
-FORMAT :
-Phrase 1 : réponse claire
-Phrase 2 : question de qualification
           `,
         },
         { role: "user", content: userText },
@@ -123,15 +77,18 @@ Phrase 2 : question de qualification
     });
 
     const aiReply =
-      chat.choices[0]?.message?.content ??
+      chat.choices[0]?.message?.content ||
       "Pouvez-vous préciser votre demande, s’il vous plaît ?";
 
+    // =========================
+    // 4️⃣ RÉPONSE + RELANCE ÉCOUTE
+    // =========================
     response.say(
       { voice: "alice", language: "fr-FR" },
       limitVoice(aiReply)
     );
 
-    response.hangup();
+    response.redirect("https://www.ialynk.fr/api/twilio/voice");
 
     return new NextResponse(response.toString(), {
       headers: { "Content-Type": "text/xml" },
@@ -142,9 +99,8 @@ Phrase 2 : question de qualification
 
     response.say(
       { voice: "alice", language: "fr-FR" },
-      "Une erreur est survenue. Veuillez réessayer plus tard."
+      "Désolée, une erreur technique est survenue."
     );
-    response.hangup();
 
     return new NextResponse(response.toString(), {
       headers: { "Content-Type": "text/xml" },

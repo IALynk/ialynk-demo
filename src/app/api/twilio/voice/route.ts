@@ -19,13 +19,13 @@ export async function POST(req: Request) {
     const recordingUrl = params.get("RecordingUrl");
     const recordingStatus = params.get("RecordingStatus");
 
-    // 🟡 IMPORTANT : ignorer les callbacks intermédiaires
+    // 🟡 Ignorer les callbacks intermédiaires de Twilio
     if (recordingStatus && recordingStatus !== "completed") {
       return new NextResponse("", { status: 200 });
     }
 
     // =========================
-    // 1️⃣ APPEL ENTRANT (1er passage)
+    // 1️⃣ APPEL ENTRANT
     // =========================
     if (!recordingUrl) {
       response.say(
@@ -52,12 +52,12 @@ export async function POST(req: Request) {
     }
 
     // =========================
-    // 2️⃣ TRANSCRIPTION AUDIO
+    // 2️⃣ TRANSCRIPTION AUDIO (WHISPER)
     // =========================
     const audioUrl = `${recordingUrl}.wav`;
-
     const audioResponse = await fetch(audioUrl);
     const audioBuffer = await audioResponse.arrayBuffer();
+
     const audioFile = new File([audioBuffer], "audio.wav", {
       type: "audio/wav",
     });
@@ -66,17 +66,19 @@ export async function POST(req: Request) {
       apiKey: process.env.OPENAI_API_KEY!,
     });
 
+    // ✅ SEUL modèle STT valide
     const transcript = await openai.audio.transcriptions.create({
       file: audioFile,
-      model: "chatgpt_5.1-transcribe",
+      model: "whisper-1",
+      language: "fr",
     });
 
-    const userText = transcript.text?.trim() || "";
+    const userText = transcript.text?.trim();
 
     if (!userText) {
       response.say(
         { voice: "alice", language: "fr-FR" },
-        "Je suis désolée, je n’ai rien entendu. Pouvez-vous reformuler ?"
+        "Je suis désolée, je n’ai pas bien entendu. Pouvez-vous reformuler ?"
       );
       response.hangup();
 
@@ -86,10 +88,10 @@ export async function POST(req: Request) {
     }
 
     // =========================
-    // 3️⃣ IA IMMOBILIÈRE
+    // 3️⃣ IA IMMOBILIÈRE (GPT-5.2)
     // =========================
     const chat = await openai.chat.completions.create({
-      model: "chatgpt-5.1",
+      model: "gpt-5.2",
       messages: [
         {
           role: "system",
@@ -98,7 +100,7 @@ Tu es IA Link, assistante téléphonique immobilière professionnelle en France.
 
 RÈGLES ABSOLUES :
 - Tu réponds TOUJOURS en français
-- Réponses COURTES (1 à 2 phrases max)
+- Réponses COURTES (1 à 2 phrases)
 - Ton naturel, humain, rassurant
 - Tu poses TOUJOURS une question utile
 - Tu qualifies le besoin
@@ -121,7 +123,7 @@ Phrase 2 : question de qualification
     });
 
     const aiReply =
-      chat.choices[0]?.message?.content ||
+      chat.choices[0]?.message?.content ??
       "Pouvez-vous préciser votre demande, s’il vous plaît ?";
 
     response.say(
